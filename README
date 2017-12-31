@@ -1,0 +1,19 @@
+saugdat
+=======
+
+Get the download URLs from all H264 HD videos from 34c3 available on
+https://media.ccc.de.
+Thanks for providing the videos!
+
+Usage
+-----
+Before you can use it you need to get your environment up and running
+and install some packages via pip. I used a virtual environment for
+that (requires you to install virtualenv on your computer)
+
+1. virtualenv -p python3 ~/.virtualenvs/saugdat/
+2. source ~/.virtualenvs/saugdat/bin/activate
+3. pip install requests bs4
+4. chmod +x saugdat
+5. ./saugdat > urls.txt
+

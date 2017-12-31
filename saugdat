@@ -1,0 +1,128 @@
+#!/usr/bin/env python3
+# Download all videos from 34c3
+#
+# Before you can use it you need to get your environment up and running
+# and install some packages via pip. I used a virtual environment for
+# that (requires you to install virtualenv on your computer)
+#  1. virtualenv -p python3 ~/.virtualenvs/saugdat/
+#  2. source ~/.virtualenvs/saugdat/bin/activate
+#  3. pip install requests bs4
+#  4. chmod +x saugdat
+#  5. ./saugdat > urls.txt
+#
+# If you want to fetch videos from other URLs or need to change the
+# delimiter have a look at the last line of this script.
+# Has only been tested with 34c3 video footage but may work with other
+# CCC events as well.
+
+# Imports we need
+import sys
+import requests
+from bs4 import BeautifulSoup
+
+# Some values we want to use.
+BASE_URL = "https://media.ccc.de/"
+START_PAGE = "/c/34c3"
+
+###
+### Here be dragons
+###
+class Linkgetter:
+
+    base_url = ""
+    start_page = ""
+    delimiter = " "
+
+    def __init__(self, base_url, start_page = "", delimiter=" "):
+        """
+        :param base_url: URL pointing to the media ccc event
+        :param start_page: URL pointing to the media ccc event
+        :param delimiter: Char/String used to separate URLS in output
+        """
+        self.base_url = base_url
+        self.start_page = start_page
+        self.delimiter = delimiter
+
+        # enter main run loop
+        try:
+            self.main()
+            sys.exit(0)
+        except KeyboardInterrupt:
+            sys.exit(0)
+
+
+
+    def main(self):
+        """
+        Main run loop of the script, coordinates actions
+        """
+        # Get links from the event's starting page
+        links_from_main_page = self.get_links_from_page(self.start_page, base_url=self.base_url)
+        links_to_talks = self.filter_video_links(links_from_main_page)
+
+        # Iterate the links to the talks and get the HQ links from there
+        for talk_link in links_to_talks:
+            links_from_talk = self.get_links_from_page(talk_link, base_url=self.base_url)
+            print(self.delimiter.join(self.filter_hq_video_links(links_from_talk)))
+
+
+    def get_links_from_page(self, url, base_url=""):
+        """
+        Get all links from a document referred to by a given URL.
+
+        :param url: URL to fetch, might be relative is base_url is set
+        :param base_url: Base url, "starting part" of URL (optional)
+        :return: set with all links
+        """
+        result = set()
+        try:
+            response = requests.get("{}{}".format(base_url, url))
+            soup = BeautifulSoup(response.content, "html.parser")
+            for link in soup.findAll('a'):
+                result.add(link.get('href'))
+        except Exception as e:
+            print("Could not get links from {}{}: {}".format(base_url, url, e))
+
+        return result
+
+
+    def filter_video_links(self, set_of_links):
+        """
+        Returns a set from video links that are contained in the
+        set of links provided to this function.
+        The pattern which is used to identify video links needs
+        to be changed if you are not using media.ccc.de
+
+        :param set_of_links: Set of links to process
+        :return: Set of links pointing to videos
+        """
+        result = set()
+        for link in set_of_links:
+            if link.startswith("/v/"):
+                # If href starts with "/v/" we found a video link
+                result.add(link)
+        return result
+
+
+    def filter_hq_video_links(self, set_of_links):
+        """
+        Returns a set of links pointing to HQ videos.
+        The pattern which is used to identify video links needs
+        to be changed if you are not using media.ccc.de or if
+        you want to download the videos in another format
+
+        :param set_of_links: Set of links to process
+        :return: Set of links pointing to HQ videos
+        """
+        result = set()
+        for link in set_of_links:
+            if "h264-hd" in link and "slides" not in link:
+                # We are interested in h264-hd videos but not
+                # in videos having "slides" in their name
+                result.add(link)
+        return result
+
+
+if __name__ == '__main__':
+    # Here the program is invoked
+    Linkgetter(base_url = BASE_URL, start_page = START_PAGE, delimiter = "\n")
